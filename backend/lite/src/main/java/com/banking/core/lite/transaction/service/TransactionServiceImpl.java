@@ -7,6 +7,9 @@ import com.banking.core.lite.audit.event.AuditEvent;
 import com.banking.core.lite.account.enumtype.AccountStatus;
 import com.banking.core.lite.account.repository.AccountRepository;
 import com.banking.core.lite.auth.entity.User;
+import com.banking.core.lite.entryLedger.entity.LedgerEntry;
+import com.banking.core.lite.entryLedger.enumType.EntryType;
+import com.banking.core.lite.entryLedger.repository.LedgerRepo;
 import com.banking.core.lite.transaction.dto.TransactionResponse;
 import com.banking.core.lite.transaction.entity.Transaction;
 import com.banking.core.lite.transaction.enumType.TransactionStatus;
@@ -17,6 +20,7 @@ import com.banking.core.lite.common.exception.InsufficientBalanceException;
 import com.banking.core.lite.common.exception.InvalidTransactionAmountException;
 import com.banking.core.lite.common.exception.UnverifiedUserException;
 import com.banking.core.lite.common.exception.ValidationException;
+import com.banking.core.lite.transaction.utils.TransactionRefGenerator;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,7 +40,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final ApplicationEventPublisher publisher;
-
+    private final LedgerRepo ledgerRepo;
+    private final String shareRef=TransactionRefGenerator.generateTransactionReference();
     private Account getAccountForUpdate(String accountNumber) {
         return accountRepository.findByAccountNumberForUpdate(accountNumber)
                 .orElseThrow(() -> new AccountNotFoundException(accountNumber));
@@ -50,8 +55,11 @@ public class TransactionServiceImpl implements TransactionService {
         validateUserVerified(account.getUser());
         validateAccountStatus(account);
         account.setBalance(account.getBalance().add(amount));
+        String txtRef=TransactionRefGenerator.generateTransactionReference();
+        LedgerEntry credit=new LedgerEntry(txtRef,account.getAccountNumber(),EntryType.CREDIT,amount);
+        ledgerRepo.save(credit);
         transactionRepository.save(
-                buildTransaction(account.getUser(), null, account, amount, TransactionType.DEPOSIT, account.getCurrency())
+                buildTransaction(account.getUser(),txtRef, null, account, amount, TransactionType.DEPOSIT, account.getCurrency())
         );
         transactionRepository.flush();
 
@@ -81,8 +89,11 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         account.setBalance(account.getBalance().subtract(amount));
+        String txtRef=TransactionRefGenerator.generateTransactionReference();
+        LedgerEntry debit=new LedgerEntry(txtRef,accountNumber,EntryType.DEBIT,amount);
+        ledgerRepo.save(debit);
         transactionRepository.save(
-                buildTransaction(account.getUser(), account, null, amount, TransactionType.WITHDRAW, account.getCurrency())
+                buildTransaction(account.getUser(),txtRef, account, null, amount, TransactionType.WITHDRAW, account.getCurrency())
         );
         transactionRepository.flush();
 
@@ -136,10 +147,15 @@ public class TransactionServiceImpl implements TransactionService {
         // Atomic balance update
         from.setBalance(from.getBalance().subtract(amount));
         to.setBalance(to.getBalance().add(amount));
+        String txtRef=TransactionRefGenerator.generateTransactionReference();
 
         transactionRepository.save(
-                buildTransaction(from.getUser(), from, to, amount, TransactionType.TRANSFER, from.getCurrency())
+                buildTransaction(from.getUser(),txtRef, from, to, amount, TransactionType.TRANSFER, from.getCurrency())
         );
+
+        LedgerEntry credit=new LedgerEntry(txtRef,from.getAccountNumber(), EntryType.DEBIT,amount);
+        LedgerEntry debit=new LedgerEntry(txtRef,to.getAccountNumber(),EntryType.CREDIT,amount);
+        ledgerRepo.saveAll(List.of(credit,debit));
         transactionRepository.flush();
 
         // ── Audit: TRANSFER ────────────────────────────────────────────────
@@ -198,6 +214,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private Transaction buildTransaction(User user,
+                                         String txtRef,
                                          Account from,
                                          Account to,
                                          BigDecimal amount,
@@ -212,7 +229,7 @@ public class TransactionServiceImpl implements TransactionService {
         tx.setCurrency(currency);
         tx.setType(type);
         tx.setStatus(TransactionStatus.SUCCESS);
-        tx.setTransactionReference(generateTransactionReference());
+        tx.setTransactionReference(txtRef);
         tx.setIdempotencyKey(UUID.randomUUID().toString());
 
         // Audit tracking for security context (Who initiated the transaction)
@@ -225,11 +242,7 @@ public class TransactionServiceImpl implements TransactionService {
         return tx;
     }
 
-    private String generateTransactionReference() {
-        String dateStr = DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now());
-        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        return "TXN-" + dateStr + "-" + uniqueSuffix;
-    }
+
 
     private TransactionResponse mapToResponse(Transaction tx) {
         return new TransactionResponse(

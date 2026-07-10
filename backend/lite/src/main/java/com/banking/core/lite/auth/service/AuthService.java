@@ -3,10 +3,6 @@ package com.banking.core.lite.auth.service;
 import com.banking.core.lite.audit.enumType.AuditAction;
 import com.banking.core.lite.audit.enumType.AuditModule;
 import com.banking.core.lite.audit.event.AuditEvent;
-import com.banking.core.lite.account.entity.Account;
-import com.banking.core.lite.account.enumtype.AccountStatus;
-import com.banking.core.lite.account.enumtype.AccountType;
-import com.banking.core.lite.account.repository.AccountRepository;
 import com.banking.core.lite.auth.dto.*;
 import com.banking.core.lite.auth.entity.RefreshToken;
 import com.banking.core.lite.auth.entity.Role;
@@ -20,22 +16,15 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
-
-import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import com.banking.core.lite.common.exception.UserNotFoundException;
 import com.banking.core.lite.common.exception.ValidationException;
 import com.banking.core.lite.common.exception.RateLimitExceededException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,8 +33,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    private final JavaMailSender mailSender;
-    private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -54,7 +41,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final TokenBlacklistService blacklistService;
     private final RateLimitingService rateLimitingService;
-    private static final String OTP_PREFIX = "OTP_";
     private final ApplicationEventPublisher publisher;
 
     @Transactional

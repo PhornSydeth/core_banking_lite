@@ -1,20 +1,22 @@
-import React, {useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../context/AuthContext.tsx";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../context/AuthContext.tsx";
 import Header from "../components/Header.tsx";
 import Footer from "../components/Footer.tsx";
 import TransferModal from "../components/TransferModal.tsx";
-import  {AuthService, type AccountResponse} from "../service/authService.ts";
+import DepositModal from "../components/DepositModal.tsx";
+import { AuthService, type AccountResponse } from "../service/authService.ts";
 import { extractErrorMessage } from "../utils/errorHandler.ts";
 
-const Dashboard:React.FC=()=>{
+const Dashboard: React.FC = () => {
     // @ts-ignore
-    const {user,loading}=useAuth();
+    const { user, loading } = useAuth();
     const navigate = useNavigate();
     const [accounts, setAccounts] = useState<AccountResponse[]>([]);
     const [accountsLoading, setAccountsLoading] = useState(false);
     const [accountsError, setAccountsError] = useState<string | null>(null);
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
     useEffect(() => {
@@ -45,16 +47,16 @@ const Dashboard:React.FC=()=>{
         return accounts.filter(account => account.status === "ACTIVE").length;
     };
 
-    if(loading) return (
+    if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
         </div>
     );
-    
-    if(!user){
+
+    if (!user) {
         return null;
     }
-    
+
     return (
         <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-800">
             <Header />
@@ -73,7 +75,7 @@ const Dashboard:React.FC=()=>{
                             <p className="text-blue-200 text-lg">Here's an overview of your CoreBanking Lite account.</p>
                         </div>
                     </div>
-                    
+
                     {/* Dashboard Content */}
                     <div className="p-8">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -116,11 +118,14 @@ const Dashboard:React.FC=()=>{
                                 </svg>
                                 View Transactions
                             </button>
-                            <button className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            <button 
+                                onClick={() => setIsDepositModalOpen(true)}
+                                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                            >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                                 </svg>
-                                Create Account
+                                Deposit Funds
                             </button>
                         </div>
                         {/* Accounts List Section */}
@@ -161,11 +166,10 @@ const Dashboard:React.FC=()=>{
                                                         ${Number(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm">
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                            account.status === 'ACTIVE' 
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${account.status === 'ACTIVE'
                                                                 ? 'bg-green-100 text-green-800'
                                                                 : 'bg-red-100 text-red-800'
-                                                        }`}>
+                                                            }`}>
                                                             {account.status}
                                                         </span>
                                                     </td>
@@ -213,6 +217,27 @@ const Dashboard:React.FC=()=>{
                         )}
                     </div>
                 </div>
+
+                {/* Deposit Modal */}
+                <DepositModal
+                    isOpen={isDepositModalOpen}
+                    onClose={() => setIsDepositModalOpen(false)}
+                    onSuccess={() => {
+                        setIsDepositModalOpen(false);
+                        // Refresh accounts after successful deposit
+                        if (user && user.userId) {
+                            const fetchAccounts = async () => {
+                                try {
+                                    const data = await AuthService.getAccountsByUserId(user.userId);
+                                    setAccounts(data);
+                                } catch (error) {
+                                    console.error("Error refreshing accounts:", extractErrorMessage(error));
+                                }
+                            };
+                            fetchAccounts();
+                        }
+                    }}
+                />
 
                 {/* Transfer Modal */}
                 {selectedAccount && (

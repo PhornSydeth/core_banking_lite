@@ -8,6 +8,7 @@ import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -19,17 +20,12 @@ import java.util.Map;
 @RestController
 @Validated
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final OTPService otpService;
     private final RateLimitingService rateLimitingService;
-
-    public AuthController(AuthService authService, OTPService otpService, RateLimitingService rateLimitingService) {
-        this.authService = authService;
-        this.otpService = otpService;
-        this.rateLimitingService = rateLimitingService;
-    }
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest userRequest, HttpServletRequest request, HttpServletResponse response) {

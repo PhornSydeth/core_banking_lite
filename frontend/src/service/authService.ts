@@ -112,5 +112,26 @@ export const AuthService={
         } catch (error: any) {
             throw error.response?.data || "Transfer failed";
         }
+    },
+    deposit:async (accountNumber:string,amount:number):Promise<string>=>{
+          try{
+            const response=await ApiClient.post(`/transactions/deposit`,{
+                accountNumber,
+                amount
+            });
+            return response.data;
+          }catch(error:any){
+                throw error.response?.data || "Deposit failed";
+          }
+    },
+    getAccountByNumber:async(accountNumber:string):Promise<AccountResponse>=>{
+        try{
+            const response=await ApiClient.get(`/accounts/${accountNumber}`);
+            return response.data;
+
+        }catch(error:any){
+            throw error.response?.data || "Failed to fetch account details";
+        }
+
     }
 }
