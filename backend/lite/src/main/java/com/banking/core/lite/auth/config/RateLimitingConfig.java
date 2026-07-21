@@ -27,18 +27,23 @@ public class RateLimitingConfig {
      * ProxyManager connected to a different Redis than the one started by
      * Testcontainers, causing buckets to never be found/stored during tests.
      */
-    @Value("${spring.data.redis.host:localhost}")
+    @Value("${spring.data.redis.host}")
     private String redisHost;
 
-    @Value("${spring.data.redis.port:6379}")
+    @Value("${spring.data.redis.port}")
     private int redisPort;
+    @Value("${spring.data.redis.password}")
+    private String password;
 
     @Bean
     public RedisClient redisClient() {
-        return RedisClient.create(RedisURI.builder()
+        RedisURI redisURI=RedisURI.builder()
                 .withHost(redisHost)
                 .withPort(redisPort)
-                .build());
+                .withPassword(password.toCharArray())
+                .withSsl(true)
+                .build();
+        return RedisClient.create(redisURI);
     }
 
     @Bean
