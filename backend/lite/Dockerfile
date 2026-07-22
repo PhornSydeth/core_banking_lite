@@ -1,24 +1,21 @@
-# Stage 1: Build the Maven application
+# Stage 1: Build the application
 FROM maven:3.8.8-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copy pom.xml and source code
+# Copy configuration and source code
 COPY pom.xml .
 COPY src ./src
 
-# Build the package and skip tests to speed up the Render deployment
+# Build the application and skip tests for speed
 RUN mvn clean package -DskipTests
 
-# Stage 2: Run the built JAR file
+# Stage 2: Run the application
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Copy the built JAR from the first stage
-# Note: Ensure your target filename matches your pom.xml artifactId/version
+# Copy the exact jar using your artifactID and version
 COPY --from=build /app/target/lite-0.0.1-SNAPSHOT.jar app.jar
 
-# Expose the dynamic port Render provides
+# Expose port and run the jar
 EXPOSE 8080
-
-# Run the spring boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
