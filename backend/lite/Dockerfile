@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Copy the built JAR from the first stage
 # Note: Ensure your target filename matches your pom.xml artifactId/version
-COPY --from=build /app/target/*.jar lite-0.0.1-SNAPSHOT.jar
+COPY --from=build /app/target/lite-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose the dynamic port Render provides
 EXPOSE 8080
